@@ -1,0 +1,19 @@
+# Main table, FLUX.2-klein 4B, D-DMD (trained in this codebase).
+description: >-
+  D-DMD on FLUX.2-klein base 4B at the teacher's default guidance w = 4 (CA coefficient 3) with the authors'
+  raw-then-shift query law; student learning rate tuned to 5e-6; 2000 updates.
+model: flux2_klein_4b
+method: ddmd
+eval: drawbench1k
+run:
+  name: flux2_klein_4b_ddmd
+  output_root: outputs
+  seed: 20260720
+  data: {path: datasets/train/mixed_200k_train.txt, global_batch_size: 16}
+  wandb: {enabled: true, mode: online}
+  checkpoint_every: 100
+  eval_every: 100
+  eval_ema: true
+overrides:
+  method.engine.cfg: 4.0
+  method.updates.student.lr: 5.0e-6

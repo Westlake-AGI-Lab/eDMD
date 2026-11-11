@@ -1,0 +1,12 @@
+# DrawBench-1000 for Qwen-Image-2.1, which samples from prompt-enhanced text: row i is rendered from the prompt
+# enhancer's frozen rewrite of DrawBench row i, at the aspect ratio it chose (1K area tier), with seed 42 + i, and
+# scored against the raw row. Scores are not comparable with the square drawbench1k evaluation.
+name: drawbench1k_pe_aspect1k
+prompt_file: datasets/eval/drawbench1k_pe.jsonl
+score_prompt_file: datasets/eval/drawbench.txt
+seed: 42
+metrics: [hpsv3, pickscore, aesthetic, hpsv2, hpsv3pp]
+extra_metrics: [imagereward, clip]   # scored and reported too
+geometry: aspect
+geometry_tier: 1k            # the adapter's 1K area tier (1:1 = 1024 x 1024)
+preview_count: 8             # W&B gallery of the periodic evaluation: images per checkpoint

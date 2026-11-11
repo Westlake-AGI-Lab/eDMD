@@ -1,0 +1,29 @@
+# HPSv3++ (Python 3.10), a separate environment: its Qwen3-VL base needs transformers >= 4.57, the other scorers
+# 4.45.2. The model code is the HPSv3-PlusPlus checkout (eval/HPSv3PlusPlus, put first on sys.path by the scorer).
+# Then, without its dependency pins (trl 0.12.2 declares transformers < 4.47; HPSv3++ imports get_kbit_device_map,
+# which later trl releases removed):
+#   pip install --no-deps trl==0.12.2
+# On Ascend NPUs, add torch_npu for torch 2.8 as the Ascend documentation describes.
+torch==2.8.0
+torchvision==0.23.0
+transformers==4.57.3
+tokenizers==0.22.1
+accelerate==1.12.0
+huggingface-hub==0.36.0
+safetensors==0.8.0
+peft==0.20.0
+rich==14.3.3
+datasets==5.0.1
+matplotlib==3.10.9
+prettytable==3.18.0
+tensorboard==2.20.0
+fire==0.7.1
+omegaconf==2.3.0
+sentencepiece==0.2.1
+protobuf==6.33.1
+einops==0.8.1
+pandas==2.3.3
+numpy==2.2.6
+pillow==12.0.0
+PyYAML==6.0.3
+tqdm==4.67.1

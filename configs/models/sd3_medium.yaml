@@ -1,0 +1,44 @@
+# Stable Diffusion 3 Medium (2B MMDiT, CLIP-L + CLIP-G + T5-XXL, 16-channel VAE, static shift 3).
+# Weights: huggingface.co/stabilityai/stable-diffusion-3-medium-diffusers, downloaded under $EDMD_MODEL_ROOT.
+# Student and fake are LoRA r32 / alpha 64 on the adapter's default targets (every attention projection and
+# feed-forward linear of both streams).
+name: sd3_medium
+variant: medium
+path: ${EDMD_MODEL_ROOT}/stabilityai/stable-diffusion-3-medium-diffusers
+resolution: 1024
+roles:
+  student:
+    train: lora
+    lora:
+      rank: 32
+      alpha: 64
+      dropout: 0.0
+      init: gaussian
+      targets: null          # null = the adapter's default targets
+    activation_checkpointing: true
+  fake:
+    train: lora
+    lora:
+      rank: 32
+      alpha: 64
+      dropout: 0.0
+      init: gaussian
+      targets: null
+    activation_checkpointing: true
+negative_prompt: ""          # the pipeline's default negative prompt
+text_encoder_shard: true     # FSDP2-shard T5-XXL over its blocks
+reshard_after_forward: true
+options:
+  max_sequence_length: 256   # T5 tokens (the pipeline's default)
+  clip_skip: null            # penultimate CLIP layer, as the pipeline
+  compute_dtype: bfloat16
+  text_encoder_dtype: bfloat16
+  # evaluation numerics: a bf16 pipeline under bf16 autocast with the VAE in float32
+  vae_dtype: float32
+  vae_load_dtype: bfloat16   # the VAE weights are loaded in bf16, then cast to vae_dtype
+  noise_dtype: bfloat16      # latents are drawn in the prompt embeddings' dtype (bf16), in training and evaluation
+  sampling_dtype: bfloat16   # evaluation latent state (noise, velocities, Euler states)
+  sampling_autocast: bfloat16
+  # LoRA numerics at inference: unmerged_compute (as trained) | peft_fp32 | merged (see edmd/models/base.py)
+  inference_lora: unmerged_compute
+wandb_project: edmd_sd3_medium

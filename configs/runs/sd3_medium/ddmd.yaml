@@ -1,0 +1,19 @@
+# Main table, SD3-Medium, D-DMD (trained in this codebase).
+description: >-
+  D-DMD on SD3-Medium at the teacher's default guidance w = 7 (CA coefficient 6) with the authors' raw-then-shift
+  query law; student learning rate 5e-6 (the FLUX.2-klein 4B setting); 2000 updates.
+model: sd3_medium
+method: ddmd
+eval: drawbench1k
+run:
+  name: sd3_medium_ddmd
+  output_root: outputs
+  seed: 20260720
+  data: {path: datasets/train/mixed_200k_train.txt, global_batch_size: 16}
+  wandb: {enabled: true, mode: online}
+  checkpoint_every: 100
+  eval_every: 100
+  eval_ema: true
+overrides:
+  method.engine.cfg: 7.0
+  method.updates.student.lr: 5.0e-6

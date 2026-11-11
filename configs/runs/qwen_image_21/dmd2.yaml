@@ -1,0 +1,23 @@
+# Qwen-Image-2.1 table, DMD2 (trained in this codebase, without the GAN term).
+description: >-
+  DMD2 on Qwen-Image-2.1 (1K multi-aspect training on prompt-enhanced prompts) at the teacher's default guidance
+  w = 1, the official hyperparameters otherwise; EMA kept for evaluation; 800 updates (the table selects within 600).
+model: qwen_image_21
+method: dmd2
+eval: drawbench1k_pe_aspect1k
+run:
+  name: qwen_image_21_dmd2
+  output_root: outputs
+  seed: 20260720
+  data:
+    path: datasets/train/mixed_200k_clean/train_pe.jsonl
+    global_batch_size: 16
+    geometry: {mode: buckets, tiers: {1k: 1.0}}   # each prompt at its enhancer-chosen aspect ratio, 1K area
+  wandb: {enabled: true, mode: online}
+  checkpoint_every: 100
+  eval_every: 100
+  eval_ema: true
+overrides:
+  method.engine.cfg: 1.0
+  method.updates.max_steps: 800
+  method.updates.ema: {enabled: true, decay: 0.999, update_every: 1, warmup: true, offset: 1}

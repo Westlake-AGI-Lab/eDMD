@@ -1,0 +1,38 @@
+# HPSv3, PickScore, Aesthetic, HPSv2.1, ImageReward and CLIP score (Python 3.10): the versions of the paper's scorer
+# environment. Then, without their dependency pins (hpsv3 declares deepspeed and opencv-python, trl 0.12.2
+# transformers < 4.47, image-reward timm 0.6.13; scoring needs none of them):
+#   pip install --no-deps hpsv3==1.0.0 hpsv2x==1.2.0 trl==0.12.2 image-reward==1.5 fairscale==0.4.13
+# On Ascend NPUs, add torch_npu for torch 2.8 as the Ascend documentation describes.
+torch==2.8.0
+torchvision==0.23.0
+transformers==4.45.2
+tokenizers==0.20.3
+accelerate==1.12.0
+huggingface-hub==0.36.0
+safetensors==0.8.0
+peft==0.20.0
+rich==14.3.3
+qwen-vl-utils==0.0.14
+timm==1.0.28
+fire==0.7.1
+omegaconf==2.3.0
+datasets==5.0.1
+tensorboard==2.20.0
+ftfy==6.3.1
+regex==2025.11.3
+protobuf==3.20.3
+sentencepiece==0.2.1
+einops==0.8.1
+pandas==2.3.3
+pyarrow==23.0.1
+braceexpand==0.1.7
+webdataset==0.2.111
+clint==0.5.1
+matplotlib==3.10.9
+numpy==2.2.6
+pillow==12.0.0
+PyYAML==6.0.2
+tqdm==4.67.1
+opencv-python-headless==4.13.0.92
+diffusers==0.33.0          # imported by image-reward (ImageReward/ReFL.py)
+openai-clip==1.0.1         # `import clip` in image-reward's models

@@ -1,0 +1,40 @@
+# FLUX.2 [klein] base 4B (text encoder Qwen3-4B from the checkpoint's text_encoder/).
+# Weights: huggingface.co/black-forest-labs/FLUX.2-klein-base-4B, downloaded under $EDMD_MODEL_ROOT.
+# Student and fake are LoRA r32 / alpha 64 / gaussian A init on the adapter's default targets (80 linears).
+name: flux2_klein
+variant: 4b
+path: ${EDMD_MODEL_ROOT}/black-forest-labs/FLUX.2-klein-base-4B
+resolution: 1024
+roles:
+  student:
+    train: lora
+    lora:
+      rank: 32
+      alpha: 64.0
+      dropout: 0.0
+      init: gaussian
+      targets: null
+    activation_checkpointing: true
+    load_path: ""
+  fake:
+    train: lora
+    lora:
+      rank: 32
+      alpha: 64.0
+      dropout: 0.0
+      init: gaussian
+      targets: null
+    activation_checkpointing: true
+    load_path: ""
+negative_prompt: ""          # Flux2KleinPipeline's unconditional branch is the empty prompt
+text_encoder_shard: true     # FSDP2-shard the frozen text encoder as well
+reshard_after_forward: true
+options:                     # recorded in weights/inference.json (they decide the rendered images)
+  max_sequence_length: 512
+  text_encoder_out_layers: [9, 18, 27]
+  dtype: bfloat16
+  noise_dtype: bfloat16      # the pipeline's draw dtype
+  sampling_dtype: bfloat16   # evaluation rollout state: the pipeline keeps bf16 latents
+  # LoRA numerics at inference: unmerged_compute (as trained) | peft_fp32 | merged (see edmd/models/base.py)
+  inference_lora: unmerged_compute
+wandb_project: edmd_flux2_klein_4b

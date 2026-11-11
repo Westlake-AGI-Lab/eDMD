@@ -1,0 +1,38 @@
+# D-DMD (Liu et al.): the student correction is decoupled into the CFG-augmentation term CA = (w - 1)(x0_c - x0_u)
+# and the distribution-matching term DM = x0_real_c - x0_fake_c, each normalized and regressed on its own.
+# No official trainer is public; this follows CDM's re-implementation (D-DMD* of the CDM paper: CDM's setting without
+# the off-trajectory term) on the anchor of a whole Euler rollout, with the query law the D-DMD authors describe:
+# raw time drawn uniformly (CA: below the anchor's raw time), shifted once by the model's shift, no clamp.
+name: ddmd
+num_steps: 4
+schedule: native
+rollout: {sampler: euler, grid: fixed, to_exit: false}       # the whole fixed-grid trajectory, no grad
+step_select: anchor                                          # one anchor step per sample
+critic:
+  source: anchor_x0                                          # the rollout's one-step prediction at the anchor
+  query: {source: x0, range: uniform, space: raw, lo: 0.0, hi: 1.0}
+  label: fresh
+  weight: {kind: v_space}                                    # plain velocity MSE
+  merge_student: null                                        # no fake <- student merge (that is CDM's)
+generator:
+  terms:                                                     # CA, then DM (CDM's order)
+    - kind: ca
+      query: {source: x0, range: below_step, space: raw, lo: 0.0, hi: 1.0}
+    - kind: dm
+      query: {source: x0, range: uniform, space: raw, lo: 0.0, hi: 1.0}
+  normalization: {reference: cond, floor: 0.1, eps: 1.0e-8, dtype: float32, nan_to_num: true}
+  loss: {form: mse, placement: target, scale: 1.0}
+engine:
+  cfg: 8.0                                                   # CA coefficient w - 1 = 7 (CDM's SD3 protocol)
+  precise_teacher: {enabled: false}
+updates:
+  ratio: 2                                                   # two fake updates per student update
+  order: critic_first
+  max_steps: 2000
+  # CDM's warmup of 100 scheduler ticks is counted once per process: with its 8 processes both roles reach full LR
+  # after 100 / 8 = 12.5 updates.
+  student: {lr: 1.0e-5, betas: [0.9, 0.999], weight_decay: 1.0e-4, eps: 1.0e-8, clip: 1.0,
+            schedule: {kind: constant_with_warmup, warmup: 13}}
+  fake: {lr: 5.0e-6, betas: [0.9, 0.999], weight_decay: 1.0e-4, eps: 1.0e-8, clip: 1.0,
+         schedule: {kind: constant_with_warmup, warmup: 13}}
+  ema: {enabled: true, decay: 0.999, update_every: 1, warmup: true, offset: 1}

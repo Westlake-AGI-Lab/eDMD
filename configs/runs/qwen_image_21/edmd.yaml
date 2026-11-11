@@ -1,0 +1,38 @@
+# Qwen-Image-2.1 table, eDMD.
+description: >-
+  eDMD on Qwen-Image-2.1 (1K multi-aspect training on prompt-enhanced prompts) at the teacher's default guidance
+  w = 1 (no CFG): the contrast is perturbed-attention guidance (block 6, scale 5) on reads above the last step's input
+  level; the steps before the last read their own handed-over state, forward-noised (waypoint_noise: own), at the
+  calibrated levels of the Qwen-Image-2.1 table; endpoint critic weight capped at 5 without a floor; 600 updates.
+model: qwen_image_21
+method: edmd
+eval: drawbench1k_pe_aspect1k
+run:
+  name: qwen_image_21_edmd
+  output_root: outputs
+  seed: 20260720
+  data:
+    path: datasets/train/mixed_200k_clean/train_pe.jsonl
+    global_batch_size: 16
+    geometry: {mode: buckets, tiers: {1k: 1.0}}   # each prompt at its enhancer-chosen aspect ratio, 1K area
+  wandb: {enabled: true, mode: online}
+  checkpoint_every: 100
+  eval_every: 100
+  eval_ema: true
+overrides:
+  method.engine.cfg: 1.0
+  method.engine.pag: {scale: 5.0, blocks: [6], band: compose}
+  method.critic.weight: {kind: eps_space, terminal_clamp: [null, 5.0]}
+  method.updates.max_steps: 600
+  method.generator.terms:
+    - kind: coupled
+      query:
+        source: next_state
+        range: interval
+        interval: overlap
+        space: sigma
+        lo: 0.02
+        margin: 0.01
+        waypoint: calibrated
+        waypoint_noise: own
+        calibration: qwen_image_21   # configs/calibration/qwen_image_21.json

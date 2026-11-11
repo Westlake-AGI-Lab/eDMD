@@ -1,0 +1,32 @@
+# Main table, SD3-Medium, eDMD.
+description: >-
+  eDMD on SD3-Medium at the teacher's default guidance w = 7: endpoint critic, calibrated reads before the last
+  step (SD3-Medium table), precise teacher over the last step's band; student LR constant after 100 warm-up updates,
+  then a half cosine to 0 from update 1200; 2000 updates.
+model: sd3_medium
+method: edmd
+eval: drawbench1k
+run:
+  name: sd3_medium_edmd
+  output_root: outputs
+  seed: 20260720
+  data: {path: datasets/train/mixed_200k_train.txt, global_batch_size: 16}
+  wandb: {enabled: true, mode: online}
+  checkpoint_every: 100
+  eval_every: 100
+  eval_ema: true
+overrides:
+  method.engine.cfg: 7.0
+  method.updates.student.schedule: {kind: constant_then_cosine, warmup: 100, decay_start: 1200}
+  method.generator.terms:
+    - kind: coupled
+      query:
+        source: next_state
+        range: interval
+        interval: overlap
+        space: sigma
+        lo: 0.02
+        margin: 0.01
+        waypoint: calibrated
+        waypoint_noise: fresh
+        calibration: sd3_medium   # configs/calibration/sd3_medium.json

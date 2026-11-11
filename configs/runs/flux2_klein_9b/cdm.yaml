@@ -1,0 +1,29 @@
+# Main table, FLUX.2-klein 9B, CDM (retrained).
+description: >-
+  CDM on FLUX.2-klein base 9B at the teacher's default guidance w = 4: the 4B setting (CA term weight 0.5) with both
+  learning rates halved (student 5e-7, fake 2.5e-7); 2000 updates.
+model: flux2_klein_9b
+method: cdm
+eval: drawbench1k
+run:
+  name: flux2_klein_9b_cdm
+  output_root: outputs
+  seed: 20260720
+  data: {path: datasets/train/mixed_200k_train.txt, global_batch_size: 16}
+  wandb: {enabled: true, mode: online}
+  checkpoint_every: 100
+  eval_every: 100
+  eval_ema: true
+overrides:
+  method.engine.cfg: 4.0
+  method.updates.student.lr: 5.0e-7
+  method.updates.fake.lr: 2.5e-7
+  method.generator.terms:
+    - kind: ca
+      weight: 0.5
+      query: {source: x0, range: below_step, space: sigma, lo: 0.02, hi: 0.98, bound: clamp}
+    - kind: dm
+      query: {source: x0, range: uniform, space: sigma, lo: 0.02, hi: 0.98, bound: clamp}
+    - kind: cdm
+      query: {source: x0, range: uniform, space: sigma, lo: 0.02, hi: 0.98, bound: clamp}
+      cdm: {student_lo: 0.02, student_hi: 0.98, student_bound: clamp}

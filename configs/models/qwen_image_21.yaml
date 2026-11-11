@@ -1,0 +1,40 @@
+# Qwen-Image-2.1 (single-stream DiT, Qwen3-VL text encoder, 64-channel RGBA VAE), text-to-image.
+# Weights: huggingface.co/Qwen/Qwen-Image-2.1, downloaded under $EDMD_MODEL_ROOT. Needs a diffusers release with the
+# QwenImage21 classes: train, sample and render it in the environment of requirements/qwen.txt.
+name: qwen_image_21
+variant: qwen-image-2.1
+path: ${EDMD_MODEL_ROOT}/Qwen/Qwen-Image-2.1
+resolution: 1024                 # the default square geometry; other tiers come from run.data.geometry buckets
+negative_prompt: ""              # CFG's unconditional prompt; "" is encoded as " ", as the pipeline does
+text_encoder_shard: true         # FSDP2 over the text encoder's language-model layers
+reshard_after_forward: true
+wandb_project: edmd_qwen_image_21
+roles:
+  student:
+    train: lora
+    lora:
+      rank: 32
+      alpha: 64                  # scaling 2
+      dropout: 0.0
+      init: gaussian             # A ~ N(0, 1/r), B = 0: the student starts as an exact copy of the teacher
+      targets: null              # adapter default: attention q/k/v/out and the image MLP
+    activation_checkpointing: true
+    load_path: ""
+  fake:
+    train: lora
+    lora:
+      rank: 32
+      alpha: 64
+      dropout: 0.0
+      init: gaussian
+      targets: null
+    activation_checkpointing: true
+    load_path: ""
+options:
+  dtype: bfloat16                # compute dtype
+  alpha: drop                    # decoding drops the RGBA alpha channel (scorers read RGB)
+  kv_cache: true                 # inference rollouts use the pipeline's prefix KV cache
+  vae_tiling: auto               # tiled VAE above 1184 x 896 pixels: the 1K tier (1024^2 too) decodes untiled
+  noise_dtype: float32           # draw dtype (the stock pipeline draws bf16)
+  # LoRA numerics at inference: unmerged_compute (as trained) | unmerged_fp32 | merged (see edmd/models/base.py)
+  inference_lora: unmerged_compute

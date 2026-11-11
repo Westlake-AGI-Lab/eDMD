@@ -1,0 +1,40 @@
+# CDM (Liu et al.), following the official code.
+# Rollout: a dynamic random grid -- n ~ U{1..28} steps, interior raw points U(0.25, 0.95) sorted and warped by the
+# model's shift -- with deterministic Euler; one anchor per sample, shared by the fake and the three student terms
+# (CA, DM and the off-trajectory CDM term).
+name: cdm
+num_steps: 4
+schedule: native
+rollout: {sampler: euler, grid: dynamic, to_exit: false, dynamic_max_steps: 28, dynamic_raw_range: [0.25, 0.95]}
+step_select: anchor
+critic:
+  source: anchor_x0                                          # the rollout's one-step prediction at the anchor
+  query: {source: x0, range: uniform, space: sigma, lo: 0.02, hi: 0.98, bound: clamp}
+  label: fresh
+  weight: {kind: v_space}                                    # plain velocity MSE
+  merge_student: 0.999                                       # fake <- 0.999 fake + 0.001 student after each fake step
+generator:
+  terms:
+    - kind: ca                                               # (w - 1)(x0_c - x0_u), sigma ~ U(0, sigma_anchor), clamped
+      query: {source: x0, range: below_step, space: sigma, lo: 0.02, hi: 0.98, bound: clamp}
+    - kind: dm
+      query: {source: x0, range: uniform, space: sigma, lo: 0.02, hi: 0.98, bound: clamp}
+    - kind: cdm                                              # off-trajectory: x' = x_k + (s - sigma_k) v_k
+      query: {source: x0, range: uniform, space: sigma, lo: 0.02, hi: 0.98, bound: clamp}
+      cdm: {student_lo: 0.02, student_hi: 0.98, student_bound: clamp}
+  normalization: {reference: cond, floor: 0.1, eps: 1.0e-8, dtype: float32, nan_to_num: true}
+  loss: {form: mse, placement: target, scale: 1.0}
+engine:
+  cfg: 8.0                                                   # CA coefficient guidance_scale 7 = w - 1
+  precise_teacher: {enabled: false}
+updates:
+  ratio: 2                                                   # a student update every second fake update
+  order: critic_first
+  max_steps: 2000
+  # CDM's warmup of 100 scheduler ticks is counted once per process: with its 8 processes both roles reach full LR
+  # after 100 / 8 = 12.5 updates.
+  student: {lr: 1.0e-5, betas: [0.9, 0.999], weight_decay: 1.0e-4, eps: 1.0e-8, clip: 1.0,
+            schedule: {kind: constant_with_warmup, warmup: 13}}
+  fake: {lr: 5.0e-6, betas: [0.9, 0.999], weight_decay: 1.0e-4, eps: 1.0e-8, clip: 1.0,
+         schedule: {kind: constant_with_warmup, warmup: 13}}
+  ema: {enabled: true, decay: 0.999, update_every: 1, warmup: true, offset: 1}   # the step counter starts at 1

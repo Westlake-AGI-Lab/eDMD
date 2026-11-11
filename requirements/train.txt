@@ -1,0 +1,14 @@
+# Training, sampling and evaluation rendering for SD3-Medium and FLUX.2-klein (Python 3.10).
+# Ascend NPUs additionally need torch_npu for torch 2.8 (CANN 8.3), installed as the Ascend documentation describes.
+torch==2.8.0
+diffusers==0.39.0
+transformers==4.57.3
+accelerate==1.12.0
+safetensors==0.8.0
+numpy==2.2.6
+pillow==12.0.0
+pyyaml==6.0.3
+sentencepiece==0.2.1
+protobuf==6.33.1
+packaging
+wandb==0.24.2

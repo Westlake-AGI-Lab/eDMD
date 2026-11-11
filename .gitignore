@@ -1,0 +1,21 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+
+# run outputs and samples
+outputs/
+samples/
+
+# what Ascend's operator compiler (CANN) writes into the working directory
+kernel_meta/
+fusion_result.json
+
+# training corpora (not distributed; see README, Data)
+datasets/train/
+
+# the Qwen-Image-2.1 repository, cloned for its prompt enhancer (see README, Data)
+Qwen-Image-2.1/
+
+# local tool settings
+.claude/

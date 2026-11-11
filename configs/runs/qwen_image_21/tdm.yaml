@@ -1,0 +1,23 @@
+# Qwen-Image-2.1 table, TDM (the released recipe, configs/methods/tdm.yaml).
+description: >-
+  TDM on Qwen-Image-2.1 (1K multi-aspect training on prompt-enhanced prompts) at the teacher's default guidance
+  w = 1, the official hyperparameters otherwise; EMA kept for evaluation; 600 updates.
+model: qwen_image_21
+method: tdm
+eval: drawbench1k_pe_aspect1k
+run:
+  name: qwen_image_21_tdm
+  output_root: outputs
+  seed: 20260720
+  data:
+    path: datasets/train/mixed_200k_clean/train_pe.jsonl
+    global_batch_size: 16
+    geometry: {mode: buckets, tiers: {1k: 1.0}}   # each prompt at its enhancer-chosen aspect ratio, 1K area
+  wandb: {enabled: true, mode: online}
+  checkpoint_every: 100
+  eval_every: 100
+  eval_ema: true
+overrides:
+  method.engine.cfg: 1.0
+  method.updates.max_steps: 600
+  method.updates.ema: {enabled: true, decay: 0.999, update_every: 1, warmup: true, offset: 1}

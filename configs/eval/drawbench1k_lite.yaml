@@ -1,0 +1,7 @@
+# DrawBench-1000 scored with PickScore and Aesthetic only: a quick check that needs neither HPSv3 environment.
+name: drawbench1k_lite
+prompt_file: datasets/eval/drawbench.txt
+seed: 42
+metrics: [pickscore, aesthetic]
+extra_metrics: []
+preview_count: 8             # W&B gallery of the periodic evaluation: images per checkpoint

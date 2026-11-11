@@ -1,0 +1,31 @@
+# TDM (Luo et al., 2025), following the official demo trainer and README command (github.com/Luo-Yihong/TDM).
+# Flow-matching translation: DDIM is Euler; a uniform integer timestep becomes a uniform raw time warped by the
+# model's shift. Used by the Qwen-Image-2.1 TDM row; the FLUX.2 rows use tdm_l2.
+name: tdm
+num_steps: 4
+schedule: native
+rollout: {sampler: euler, grid: fixed, to_exit: false}
+step_select: per_sample                      # one step index per sample
+critic:
+  source: phase_state                        # the student's one-step prediction at the step, Euler to its next level
+  query: {source: next_state, range: interval, interval: separate, space: raw, lo: 0.02, margin: 0.01}
+  label: x0                                  # regress the student's x0
+  weight: {kind: min_snr, cap: 5.0, importance: true}   # min(SNR, 5) times the importance weight
+generator:
+  terms:
+    - kind: coupled                          # x0 + (real - fake) + (cfg - 1)(real - real_uncond)
+      query: {source: next_state, range: interval, interval: separate, space: raw, lo: 0.02, margin: 0.01}
+  normalization: {reference: guided, dtype: float64}   # mean|x0 - guided teacher| in double
+  loss: {form: huber, placement: loss, huber_c: 0.001}  # Huber loss divided by the normalizer
+engine:
+  cfg: 4.5                                   # the README's --cfg
+  precise_teacher: {enabled: false}
+updates:
+  ratio: 1                                   # one fake update, then one generator update per iteration
+  order: critic_first
+  max_steps: 10001
+  student: {lr: 4.0e-6, betas: [0.0, 0.95], weight_decay: 0.01, eps: 1.0e-8, clip: 1.0,
+            schedule: {kind: cosine, warmup: 50}}   # lr / 5, Adam(0, .95), cosine, warmup 50
+  fake: {lr: 2.0e-5, betas: [0.0, 0.95], weight_decay: 0.01, eps: 1.0e-8, clip: null,
+         schedule: {kind: constant}}                # no clip, no scheduler on the fake's optimizer
+  ema: {enabled: false}

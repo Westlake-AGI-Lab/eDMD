@@ -1,0 +1,20 @@
+# Main table, SD3-Medium, DMD2 (trained in this codebase, without the GAN term).
+description: >-
+  DMD2 on SD3-Medium at the teacher's default guidance w = 7: the official hyperparameters except the student
+  learning rate (2e-5 instead of 5e-5, the FLUX.2-klein 4B setting); EMA kept for evaluation; 2000 updates.
+model: sd3_medium
+method: dmd2
+eval: drawbench1k
+run:
+  name: sd3_medium_dmd2
+  output_root: outputs
+  seed: 20260720
+  data: {path: datasets/train/mixed_200k_train.txt, global_batch_size: 16}
+  wandb: {enabled: true, mode: online}
+  checkpoint_every: 100
+  eval_every: 100
+  eval_ema: true
+overrides:
+  method.engine.cfg: 7.0
+  method.updates.student.lr: 2.0e-5
+  method.updates.ema: {enabled: true, decay: 0.999, update_every: 1, warmup: true, offset: 1}

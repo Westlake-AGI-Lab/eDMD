@@ -1,0 +1,43 @@
+# eDMD, the method of the paper.
+#
+# * Rollout: the 4-step student samples with deterministic Euler on its fixed grid; every sample trains one of its
+#   steps (step_select: per_sample).
+# * Endpoint critic: the fake is trained on the rollout's final output (the delivered image) re-noised with fresh
+#   noise at t ~ U[0.02, 0.99), eps-space MSE with the SNR weight clamped to [1, 10].
+# * Generator: one coupled term (guided teacher minus fake), read on the overlap interval above the step's landing
+#   point. The delivered runs read the steps before the last at the teacher's calibrated levels
+#   (query.waypoint: calibrated); the table is measured per teacher, so each run file sets the whole term and
+#   names its table (calibration: <model>, i.e. configs/calibration/<model>.json from `python -m edmd.cli.calibrate`).
+# * Precise teacher (PT): reads inside the last step's band are answered by a 4-node guided Euler walk to 0.
+name: edmd
+num_steps: 4
+schedule: native
+rollout: {sampler: euler, grid: fixed, to_exit: false}
+step_select: per_sample
+critic:
+  source: final
+  query: {source: x0, range: interval, interval: overlap, space: sigma, lo: 0.02, margin: 0.01}   # t ~ U[0.02, 0.99)
+  label: fresh
+  weight: {kind: eps_space, terminal_clamp: [1.0, 10.0]}
+generator:
+  terms:
+    - kind: coupled
+      query: {source: next_state, range: interval, interval: overlap, space: sigma, lo: 0.02, margin: 0.01}
+  normalization: {reference: guided, dtype: float32}
+  loss: {form: mse, placement: loss}
+engine:
+  cfg: 4.0                   # every run trains at its teacher's default guidance (run files)
+  precise_teacher:
+    enabled: true
+    nodes: 4
+    window: {lo: 0.0, hi: 1.0}   # the last step's whole band [0, sigma_{K-1}]
+    weight: 1.0
+    guidance: null             # CFG scale of the walked reads alone; null walks at engine.cfg
+updates:
+  ratio: 5                   # fake updates per student update
+  order: critic_first
+  max_steps: 2000
+  student: {lr: 6.0e-6, betas: [0.0, 0.95], weight_decay: 0.01, eps: 1.0e-8, clip: 3.0,
+            schedule: {kind: constant_with_warmup, warmup: 100}}
+  fake: {lr: 2.0e-5, betas: [0.0, 0.95], weight_decay: 0.01, eps: 1.0e-8, clip: 1.0, schedule: {kind: constant}}
+  ema: {enabled: true, decay: 0.999, update_every: 1, warmup: true, offset: 1}

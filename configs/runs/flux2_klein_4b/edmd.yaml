@@ -1,0 +1,30 @@
+# Main table, FLUX.2-klein 4B, eDMD.
+description: >-
+  eDMD on FLUX.2-klein base 4B at the teacher's default guidance w = 4: endpoint critic, calibrated reads before the
+  last step (FLUX.2-klein 4B table), precise teacher over the last step's band; student LR constant after 100
+  warm-up updates; 2000 updates.
+model: flux2_klein_4b
+method: edmd
+eval: drawbench1k
+run:
+  name: flux2_klein_4b_edmd
+  output_root: outputs
+  seed: 20260720
+  data: {path: datasets/train/mixed_200k_train.txt, global_batch_size: 16}
+  wandb: {enabled: true, mode: online}
+  checkpoint_every: 100
+  eval_every: 100
+  eval_ema: true
+overrides:
+  method.generator.terms:
+    - kind: coupled
+      query:
+        source: next_state
+        range: interval
+        interval: overlap
+        space: sigma
+        lo: 0.02
+        margin: 0.01
+        waypoint: calibrated
+        waypoint_noise: fresh
+        calibration: flux2_klein_4b   # configs/calibration/flux2_klein_4b.json

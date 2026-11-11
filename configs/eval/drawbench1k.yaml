@@ -1,0 +1,8 @@
+# DrawBench-1000: the 200 DrawBench prompts, each on five rows (CDM's row order, not grouped); row i is rendered
+# with seed 42 + i and scored against its own prompt. The SD3-Medium and FLUX.2 evaluation of the paper.
+name: drawbench1k
+prompt_file: datasets/eval/drawbench.txt
+seed: 42
+metrics: [hpsv3, pickscore, aesthetic, hpsv2, hpsv3pp]
+extra_metrics: [imagereward, clip]   # scored and reported too
+preview_count: 8             # W&B gallery of the periodic evaluation: images per checkpoint

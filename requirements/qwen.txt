@@ -1,0 +1,14 @@
+# Qwen-Image-2.1 (Python 3.10): diffusers with the QwenImage21 classes (the runs used 0.41.0.dev0, main at the
+# commit pinned below) and transformers 5. Train, sample and render Qwen-Image-2.1 in this environment.
+torch==2.8.0
+diffusers @ git+https://github.com/huggingface/diffusers.git@9f1246971270c84dcbe71233edb7a519596a5d02
+transformers==5.17.0
+accelerate==1.12.0
+safetensors==0.8.0
+numpy==2.2.6
+pillow==12.0.0
+pyyaml==6.0.3
+sentencepiece==0.2.1
+protobuf==6.33.1
+packaging
+wandb==0.24.2
