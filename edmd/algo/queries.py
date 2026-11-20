@@ -2,10 +2,10 @@
 
 Three rules for the query time (``QuerySpec.range``):
 
-* ``interval`` -- TDM: ``t in [max(t_base, lo), upper)``, ``upper = grid[k] - margin`` (separate) or
+* ``interval`` -- TDM: ``t in [max(grid[k + 1], lo), upper)``, ``upper = grid[k] - margin`` (separate) or
   ``grid[0] - margin`` (overlap), drawn in the ``space`` grid (sigma, or the raw grid ``linspace(1, 0, K + 1)`` followed
-  by the warp -- the flow-matching analogue of TDM's uniform integer timestep). Upper bounds are exclusive after
-  rounding (``nextafter``).
+  by the warp -- the flow-matching analogue of TDM's uniform integer timestep), orthogonal to ``source``. Upper bounds
+  are exclusive after rounding (``nextafter``).
 * ``uniform`` -- ``t in [lo, hi]`` (truncate: ``lo + u (hi - lo)``) or ``clamp(u, lo, hi)`` (clamp: CDM).
 * ``below_step`` -- cleaner than the step's input, D-DMD's CA range ``tau_CA ~ U(t, 1)``: truncate
   ``lo + u (min(hi, c) - lo)`` or CDM's ``clamp(u c, lo, hi)`` with ``c = sigma_k`` (``raw_k`` in raw space).
@@ -111,10 +111,7 @@ def sample_times(spec, *, index: Tensor, sigma_grid: Tensor, raw_grid: Optional[
     if spec.range == "interval":
         left, right = qgrid[:-1][k], qgrid[1:][k]
         upper = (left if spec.interval == "separate" else qgrid[0].expand_as(left)) - float(spec.margin)
-        lower_floor = torch.full_like(right, float(spec.lo))
-        base_q = right
-        t_base = grid[1:][k] if spec.source == "next_state" else torch.zeros_like(right)
-        lower = torch.maximum(base_q, lower_floor)
+        lower = torch.maximum(right, torch.full_like(right, float(spec.lo)))
         if (upper <= lower).any():
             raise ValueError("invalid query interval: target upper must exceed lower (reduce margins / lo)")
         u = draw_u()
@@ -132,8 +129,7 @@ def sample_times(spec, *, index: Tensor, sigma_grid: Tensor, raw_grid: Optional[
             drawn = torch.minimum(torch.maximum(drawn, lower), _nextafter_down(upper, lower))
             t_q = torch.where(last, t_q, drawn)
         t = warp(t_q) if raw else t_q
-        if spec.source == "x0":
-            t_base = torch.zeros_like(t)
+        t_base = grid[1:][k] if spec.source == "next_state" else torch.zeros_like(t)
     else:
         u = draw_u()
         if spec.range == "uniform":

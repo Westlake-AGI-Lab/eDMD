@@ -67,9 +67,10 @@ class QuerySpec:
     * ``source``: ``next_state`` re-noises the step's next on-policy state ``(1 - s) x0 + s eps`` (``s =
       sigma_{k+1}``) to the query level with TDM's variance-completing kernel; ``x0`` re-noises the step's clean
       prediction with fresh noise (``t_base = 0``; DMD2).
-    * ``range``: ``interval`` -- TDM's ``t in [max(t_base, lo), upper)`` with ``upper = sigma_k - margin``
-      (``separate``) or ``sigma_0 - margin`` (``overlap``); ``uniform`` -- ``t in [lo, hi]``; ``below_step`` --
-      cleaner than the step's input level (D-DMD's CA range).
+    * ``range``: ``interval`` -- TDM's ``t in [max(sigma_{k+1}, lo), upper)`` with ``upper = sigma_k - margin``
+      (``separate``) or ``sigma_0 - margin`` (``overlap``), orthogonal to ``source`` (in ``space: raw``, the same bounds
+      on the raw grid before the warp); ``uniform`` -- ``t in [lo, hi]``; ``below_step`` -- cleaner than the step's
+      input level (D-DMD's CA range).
     * ``bound``: ``truncate`` draws inside the bounds; ``clamp`` draws on (0, 1) and clamps (CDM's ``sample_sigmas``).
     * ``space``: ``sigma`` draws the noise level directly; ``raw`` draws the model's raw time and warps it with the
       student grid's shift (the flow-matching analogue of a uniform integer timestep).

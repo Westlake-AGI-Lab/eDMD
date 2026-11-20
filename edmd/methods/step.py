@@ -217,8 +217,8 @@ class DistillationStep:
         elif source == "final":
             index = queries.select_steps("final", batch.size, roll.num_steps, self.draws, device=device,
                                          name=f"{tag}.k")
-            pred = self._predict(roll, index, batch, grad=False)
-            x0, eps = pred["x0"], pred["eps"]
+            # the last Euler step lands at sigma = 0, so roll.final is already the step's x0 prediction
+            x0, eps = roll.final, None
         elif source == "exit_x0":
             index = queries.select_steps("shared", batch.size, roll.num_steps, self.draws, device=device,
                                          name=f"{tag}.k", exit_step=roll.exit_step)
