@@ -100,8 +100,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.role not in record["roles"]:
         raise SystemExit(f"{checkpoint} has no {args.role!r} weights (roles: {sorted(record['roles'])}; see --role)")
     weights = weights_file(checkpoint, args.role)
-    device = torch.device(args.device or current().device(0))
-    device_lib.set_device(device)
+    device_name = args.device or current().device(0)
+    device_lib.set_device(device_name)
+    device = torch.device(device_name)
 
     adapter = build_adapter(model_spec)
     grid = resolve_grid(adapter, {"kind": "recorded", "float32_hex": record["grid_float32_hex"],

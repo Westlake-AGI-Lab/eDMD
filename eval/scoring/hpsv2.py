@@ -39,8 +39,10 @@ class ResizeMaxSize(nn.Module):
         if scale != 1.0:
             new_size = tuple(round(dim * scale) for dim in (height, width))
             image = F.resize(image, list(new_size), self.interpolation)
-            pad_h = self.max_size - new_size[0]
-            pad_w = self.max_size - new_size[1]
+            height, width = new_size
+        pad_h = self.max_size - height
+        pad_w = self.max_size - width
+        if pad_h > 0 or pad_w > 0:
             image = F.pad(image, padding=[pad_w // 2, pad_h // 2, pad_w - pad_w // 2, pad_h - pad_h // 2],
                           fill=self.fill)
         return image

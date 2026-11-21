@@ -181,10 +181,11 @@ def clip_grad_norm(parameters: Iterable[nn.Parameter], max_norm: float | None) -
     params = [parameter for parameter in parameters if parameter.grad is not None]
     if not params:
         raise RuntimeError("No gradients to clip.")
-    limit = float(max_norm) if (max_norm is not None and max_norm > 0) else float("inf")
-    # CPU: foreach off (torch_npu's patched foreach probe would initialize an NPU); devices: torch's default
     foreach = False if all(parameter.grad.device.type == "cpu" for parameter in params) else None
-    norm = torch.nn.utils.clip_grad_norm_(params, max_norm=limit, foreach=foreach)
+    if max_norm is not None and max_norm > 0:
+        norm = torch.nn.utils.clip_grad_norm_(params, max_norm=float(max_norm), foreach=foreach)
+    else:
+        norm = torch.nn.utils.get_total_norm([parameter.grad for parameter in params], foreach=foreach)
     return full_tensor(norm).detach().float()
 
 

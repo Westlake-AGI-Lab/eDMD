@@ -72,9 +72,9 @@ def fresh_label_loss(fake_v: Tensor, x_base: Tensor, t_base: Tensor, t: Tensor, 
 
     with torch.no_grad():
         s, tt = times(t_base), times(t)
-        valid = torch.isfinite(s) & torch.isfinite(tt) & (s >= 0) & (tt >= s) & (tt < 1) & ((1.0 - s) >= ALPHA_FLOOR)
+        valid = torch.isfinite(s) & torch.isfinite(tt) & (s >= 0) & (tt >= s) & (tt <= 1) & ((1.0 - s) >= ALPHA_FLOOR)
         if not valid.all():
-            raise ValueError("fresh-label loss requires 0 <= t_base <= t < 1 and 1 - t_base >= 1e-6")
+            raise ValueError("fresh-label loss requires 0 <= t_base <= t <= 1 and 1 - t_base >= 1e-6")
         a_s, a_t = 1.0 - s, 1.0 - tt
         scale = a_t / a_s
         variance = (tt.square() - (scale * s).square()).clamp_min(0.0)

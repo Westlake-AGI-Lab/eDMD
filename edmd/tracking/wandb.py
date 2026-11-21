@@ -237,7 +237,7 @@ def open_run(config: Any, output_dir: Path, *, job_type: str = "train", wandb_mo
     payload = config_payload(config) if creating else None
     run = wandb_module.init(**init_kwargs(settings, state["id"], creating=creating, wandb_module=wandb_module,
                                           payload=payload, job_type=job_type))
-    if creating:
+    if creating and settings.mode == "online":
         _write_state(output_dir, dict(state, created=True,
                                       created_at=datetime.now(timezone.utc).isoformat(timespec="seconds")))
     return run

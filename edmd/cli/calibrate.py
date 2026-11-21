@@ -122,8 +122,8 @@ def read_corpus(path: Path) -> tuple[list[str], list[dict]]:
 
 
 def excluded_prompts(paths: Sequence[str]) -> set[str]:
-    """Prompt texts the plan must not use: lines of a ``.txt`` file, or the ``prompt`` / ``render`` / ``raw_prompt``
-    fields of a ``.jsonl`` file (e.g. the evaluation prompts)."""
+    """Prompt texts the plan must not use: lines of a ``.txt`` file, or the ``prompt`` / ``render`` / ``score_prompt``
+    / ``score`` fields of a ``.jsonl`` file (e.g. the evaluation prompts)."""
     out: set[str] = set()
     for path in map(Path, paths):
         if not path.is_file():
@@ -135,7 +135,7 @@ def excluded_prompts(paths: Sequence[str]) -> set[str]:
                 out.add(line.strip())
                 continue
             record = json.loads(line)
-            for key in ("prompt", "render", "raw_prompt"):
+            for key in ("prompt", "render", "score_prompt", "score"):
                 if isinstance(record.get(key), str):
                     out.add(record[key].strip())
     return out
@@ -404,8 +404,8 @@ def run_shard(args) -> None:
     steps = int(args.teacher_steps or TEACHER_STEPS.get(key, 0))
     if steps <= 0:
         raise SystemExit(f"no default teacher sampler for {key}: pass --teacher-steps")
+    device_lib.set_device(args.device)
     device = torch.device(args.device)
-    device_lib.set_device(device)
     torch.set_grad_enabled(False)
     adapter = build_adapter(config.model)
     plan_bytes = Path(args.plan).read_bytes()

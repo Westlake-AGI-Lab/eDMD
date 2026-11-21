@@ -57,8 +57,9 @@ def locate_weights(value: str) -> Path:
     local path is downloaded from Hugging Face."""
     path = Path(value).expanduser()
     if not path.exists():
+        is_local = path.is_absolute() or value.startswith(("~", "./", "../"))
         parts = value.strip("/").split("/")
-        if len(parts) < 3 or not value.endswith(".safetensors"):
+        if is_local or len(parts) < 3 or not value.endswith(".safetensors"):
             raise SystemExit(f"--weights {value}: no such file or directory (a Hugging Face file is "
                              "<org>/<repo>/<path>.safetensors)")
         from huggingface_hub import hf_hub_download
@@ -82,11 +83,16 @@ def load_student(weights: Path, role: str | None) -> tuple[dict, str, dict, floa
             info = json.loads((handle.metadata() or {}).get("edmd", "null"))
             if info is None:
                 raise SystemExit(f"{weights} carries no eDMD sampling record: write it with scripts/convert_lora.py")
+            if role is not None and role != info["role"]:
+                raise SystemExit(f"{weights} holds {info['role']!r} weights, not {role!r}")
             tensors = {key.removeprefix("transformer."): handle.get_tensor(key) for key in handle.keys()}
-        return info["inference"], info["role"], tensors, 1.0         # alpha / rank is folded into lora_B
+        return info["inference"], info["role"], tensors, 1.0
     record = json.loads((weights / "inference.json").read_text())
     role = role or ("student" if (weights / "student.safetensors").is_file() else "student_ema")
-    lora = json.loads((weights / f"{role}.json").read_text())["lora"]
+    role_json = weights / f"{role}.json"
+    if not role_json.is_file():
+        raise SystemExit(f"{weights} has no {role!r} weights (roles: {sorted(record.get('roles', ()))})")
+    lora = json.loads(role_json.read_text())["lora"]
     if not lora:
         raise SystemExit(f"{role} is fully fine-tuned, not a LoRA: sample it with python -m edmd.cli.sample")
     return record, role, load_file(str(weights / f"{role}.safetensors")), float(lora["alpha"]) / int(lora["rank"])
@@ -113,9 +119,11 @@ def default_device() -> str:
     try:
         import torch_npu  # noqa: F401
 
-        return "npu"
+        if torch.npu.is_available():
+            return "npu"
     except ImportError:
-        return "cpu"
+        pass
+    return "cpu"
 
 
 def main() -> None:
@@ -131,8 +139,9 @@ def main() -> None:
     parser.add_argument("--height", type=int, help="default: the training size")
     parser.add_argument("--seed", type=int, default=42, help="image i uses seed + i")
     parser.add_argument("--out", type=Path, default=Path("samples"))
-    parser.add_argument("--device", default=default_device())
+    parser.add_argument("--device", default=None)
     args = parser.parse_args()
+    args.device = args.device or default_device()
 
     record, role, tensors, scale = load_student(locate_weights(args.weights), args.role)
     adapter = record["adapter"]

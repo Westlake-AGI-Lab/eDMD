@@ -134,9 +134,7 @@ class DistillationStep:
         # walked read at engine.precise_cfg (precise_teacher.guidance when set, else engine.cfg)
         self.needs_uncond = ((method.engine.cfg != 1.0 and bool(kinds & {"coupled", "ca"}))
                              or (self.walk_in_coupled and method.engine.precise_cfg != 1.0))
-        # an Euler rollout keeps its one-step x0 predictions and velocities only for the components that read them:
-        # the anchor critic sample (CDM, D-DMD) and CDM's off-trajectory term
-        self.record_rollout = method.critic.source == "anchor_x0" or "cdm" in kinds
+        self.record_rollout = method.critic.source in ("anchor_x0", "phase_state") or "cdm" in kinds
         self.pag = method.engine.pag
         if self.pag is not None and roles.teacher_degraded is None:
             raise ValueError("engine.pag needs Roles.teacher_degraded (the adapter's predict_velocity_degraded)")
@@ -212,12 +210,14 @@ class DistillationStep:
         if source == "phase_state":
             index = queries.select_steps("per_sample", batch.size, roll.num_steps, self.draws, device=device,
                                          name=f"{tag}.k")
-            pred = self._predict(roll, index, batch, grad=False)
-            x0, eps = pred["x0"], pred["eps"]
+            x_left = _gather(roll.states, index).detach()
+            t_left = roll.grid.to(x_left.device)[index]
+            v = _gather(roll.velocities, index).detach()
+            x0 = x_left - t_left.reshape(-1, *([1] * (x_left.ndim - 1))) * v
+            eps = x0 + v
         elif source == "final":
             index = queries.select_steps("final", batch.size, roll.num_steps, self.draws, device=device,
                                          name=f"{tag}.k")
-            # the last Euler step lands at sigma = 0, so roll.final is already the step's x0 prediction
             x0, eps = roll.final, None
         elif source == "exit_x0":
             index = queries.select_steps("shared", batch.size, roll.num_steps, self.draws, device=device,
@@ -304,31 +304,34 @@ class DistillationStep:
                 return self._teacher_pair(x_t, t, batch)
             return self.roles.teacher(x_t, t, batch.cond), None
 
-    def _guided_fn(self, batch: Batch, first: dict[str, Tensor], roll: Optional[rollout.Rollout] = None,
+    def _guided_fn(self, batch: Batch, roll: Optional[rollout.Rollout] = None,
                    scale: Optional[Tensor] = None) -> Callable[[Tensor, Tensor], Tensor]:
         """The guided teacher's velocity field (CFG, plus PAG when set) -- what the precise teacher walks. ``scale``
         carries the CFG scale per sample for a walk guided at its own scale (``precise_teacher.guidance``): walked reads
         take that scale and the rest stay at ``engine.cfg``, since the walk's first node is also the one-step answer of
-        the reads outside the window. Without it every sample reads at ``engine.cfg``. The first call stores the
-        conditional and unconditional reads in ``first``."""
+        the reads outside the window. Without it every sample reads at ``engine.cfg``."""
         w = float(self.m.engine.cfg)
-        use_pair = scale is not None or w != 1.0
+        precise_w = float(self.m.engine.precise_cfg)
+        node = 0
 
         def guided(x: Tensor, t: Tensor) -> Tensor:
+            nonlocal node
+            first_node = node == 0
+            node += 1
+            use_pair = (scale is not None or w != 1.0) if first_node else precise_w != 1.0
             if use_pair:
                 v_c, v_u = self._teacher_pair(x, t, batch)
             else:
                 v_c = v_u = self.roles.teacher(x, t, batch.cond)
-            if not first:
-                first.update(cond=v_c, uncond=v_u)
-            if scale is not None:   # roles.guide per sample (the pipelines' CFG is linear in the scale)
-                shaped = scale.to(device=v_c.device, dtype=v_c.dtype).reshape(-1, *([1] * (v_c.ndim - 1)))
-                # as ``guide`` does: a read at scale 1 is the conditional velocity itself, not a rounded sum
-                v = torch.where(shaped == 1, v_c, v_u + shaped * (v_c - v_u))
+            if scale is not None:
+                if first_node:
+                    shaped = scale.to(device=v_c.device, dtype=v_c.dtype).reshape(-1, *([1] * (v_c.ndim - 1)))
+                    v = torch.where(shaped == 1, v_c, v_u + shaped * (v_c - v_u))
+                else:
+                    v = self.roles.guide(v_c, v_u, precise_w) if precise_w != 1.0 else v_c
             else:
                 v = self.roles.guide(v_c, v_u, w) if w != 1.0 else v_c
-            if self.pag is not None:
-                # the walk integrates the PAG-tilted field; in x0 space this is the coupled read's increment
+            if self.pag is not None and (first_node or self.pag.band != "compose"):
                 v = v + self._pag_increment(v_c, self.roles.teacher_degraded(x, t, batch.cond), t, roll)
             return v
 
@@ -407,14 +410,13 @@ class DistillationStep:
         walk from the query to 0 replaces its one-step answer with share ``weight``."""
         pt = self.m.engine.precise_teacher
         x_t, t = q.x_t, q.t
-        first: dict[str, Tensor] = {}
         mask = engine.window_mask(t, k, roll.num_steps, roll.grid, pt)
         grid = engine.walk_grid(t, pt.nodes)
         scale = None
-        if self.m.engine.precise_cfg != float(self.m.engine.cfg):   # the walk carries its own CFG scale
+        if self.m.engine.precise_cfg != float(self.m.engine.cfg):
             scale = torch.where(mask, torch.full_like(mask, self.m.engine.precise_cfg, dtype=torch.float32),
                                 torch.full_like(mask, float(self.m.engine.cfg), dtype=torch.float32))
-        v_bar, v_first, _ = engine.walk(self._guided_fn(batch, first, roll, scale), x_t, grid)
+        v_bar, v_first, _ = engine.walk(self._guided_fn(batch, roll, scale), x_t, grid)
         share = engine.walk_share(t, mask, pt)
         teacher_x0 = fm.x0_from_v(x_t, engine.blend(v_bar, v_first, share), t)
         fake_x0 = fm.x0_from_v(x_t, self._fake(x_t, t, batch), t)

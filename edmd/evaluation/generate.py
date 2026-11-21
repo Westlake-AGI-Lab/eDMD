@@ -259,8 +259,8 @@ def render_images(device_name: str, job: Mapping[str, Any], cases: Sequence[Mapp
     from ..models.base import build_adapter
     from ..runtime import device as device_lib
 
+    device_lib.set_device(device_name)
     device = torch.device(device_name)
-    device_lib.set_device(device)          # npu / cuda (a CPU device needs nothing)
     adapter = build_adapter(from_mapping(ModelSpec, job["model"], "model"))
     weights = Path(job["weights"]) if job.get("weights") else None
     if job.get("official"):                # a released checkpoint with its own sampler

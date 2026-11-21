@@ -75,10 +75,12 @@ def module(kind: str | torch.device) -> Any:
 
 
 def set_device(device: torch.device | str) -> None:
-    device = torch.device(device)
     accelerator = module(device)
+    resolved = torch.device(device)
     if accelerator is not None:
-        accelerator.set_device(device)
+        if resolved.index is None:
+            resolved = torch.device(resolved.type, 0)
+        accelerator.set_device(resolved)
 
 
 def manual_seed_all(seed: int, device: torch.device) -> None:

@@ -150,9 +150,9 @@ def score_shard(metric: str, scorer, images: data.LazyImages, prompts: Sequence[
 
 def set_device(device: str) -> None:
     if device.startswith("npu"):
-        torch.npu.set_device(device)
+        torch.npu.set_device("npu:0" if device == "npu" else device)
     elif device.startswith("cuda"):
-        torch.cuda.set_device(device)
+        torch.cuda.set_device("cuda:0" if device == "cuda" else device)
 
 
 def score_paths(metric: str, paths: Sequence[str], prompts: Sequence[str], device: str) -> list:
